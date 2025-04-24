@@ -8,18 +8,22 @@ var BaiViet = require('../models/baiviet');
 router.get('/', async (req, res) => {
 	// Lấy chuyên mục hiển thị vào menu
 	var cm = await ChuDe.find();
+
 	// Lấy 12 bài viết mới nhất
 	var bv = await BaiViet.find({ KiemDuyet: 1 })
-		.sort({ NgayDang: 1 })
+		.sort({ NgayDang: -1 })
 		.populate('ChuDe')
 		.populate('TaiKhoan')
 		.limit(12).exec();
-	// Lấy 3 bài viết xem nhiều nhất hiển thị vào cột phải 
+
+	// Lấy 3 bài viết xem nhiều nhất hiển thị vào cột phải
 	var xnn = await BaiViet.find({ KiemDuyet: 1 })
 		.sort({ LuotXem: -1 })
 		.populate('ChuDe')
 		.populate('TaiKhoan')
 		.limit(3).exec();
+
+
 	res.render('index', {
 		title: 'Trang chủ',
 		chuyenmuc: cm,
@@ -32,14 +36,22 @@ router.get('/', async (req, res) => {
 // GET: Lấy các bài viết cùng mã chủ đề
 router.get('/baiviet/chude/:id', async (req, res) => {
 	var id = req.params.id;
+
+	// Lấy chuyên mục hiển thị vào menu
 	var cm = await ChuDe.find();
+
+	// Lấy thông tin chủ đề hiện tại
 	var cd = await ChuDe.findById(id);
+
+	// Lấy 8 bài viết mới nhất cùng chuyên mục
 	var bv = await BaiViet.find({ KiemDuyet: 1, ChuDe: id })
 		.sort({ NgayDang: -1 })
 		.populate('ChuDe')
 		.populate('TaiKhoan')
 		.limit(8).exec();
-	var xnn = await BaiViet.find({ KiemDuyet: 1, ChuDe: id })
+
+	// Lấy 3 bài viết xem nhiều nhất hiển thị vào cột phải
+	var xnn = await BaiViet.find({ KiemDuyet: 1 })
 		.sort({ LuotXem: -1 })
 		.populate('ChuDe')
 		.populate('TaiKhoan')
@@ -53,29 +65,48 @@ router.get('/baiviet/chude/:id', async (req, res) => {
 		xemnhieunhat: xnn,
 		firstImage: firstImage
 	});
-});
 
+});
 
 // GET: Xem bài viết
 router.get('/baiviet/chitiet/:id', async (req, res) => {
-	var id= req.params.id;
-	var cm= await ChuDe.find();
-	var bv= await BaiViet.findById(id)
-	.populate('ChuDe')
-	.populate('TaiKhoan').exec();
+	var id = req.params.id;
 
-	var xnn= await BaiViet.find({KiemDuyet: 1})
-		.sort({LuotXem: -1})
+	// Lấy chuyên mục hiển thị vào menu
+	var cm = await ChuDe.find();
+
+	// Lấy thông tin bài viết hiện tại
+	var bv = await BaiViet.findById(id)
+		.populate('ChuDe')
+		.populate('TaiKhoan')
+		.exec();
+
+	// Xử lý tăng lượt xem bài viết
+	// Mỗi máy chỉ xem một lần
+	// Dựa vào section
+	if (req.session.DaXem != id) {
+		await BaiViet.findByIdAndUpdate(id, { LuotXem: bv.LuotXem + 1 });
+
+		req.session.DaXem = id;
+	}
+
+
+	// Lấy 3 bài viết xem nhiều nhất hiển thị vào cột phải
+	var xnn = await BaiViet.find({ KiemDuyet: 1 })
+		.sort({ LuotXem: -1 })
 		.populate('ChuDe')
 		.populate('TaiKhoan')
 		.limit(3).exec();
-	res.render('BaiViet_chitiet', {
+
+	res.render('baiviet_chitiet', {
+		title: 'Bài viết chi tiết',
 		chuyenmuc: cm,
 		baiviet: bv,
 		xemnhieunhat: xnn,
 		firstImage: firstImage
 	});
 });
+
 // GET: Tin mới nhất
 router.get('/tinmoi', async (req, res) => {
 	res.render('tinmoinhat', {
@@ -86,11 +117,10 @@ router.get('/tinmoi', async (req, res) => {
 // POST: Kết quả tìm kiếm
 router.post('/timkiem', async (req, res) => {
 	var tukhoa = req.body.tukhoa;
-
+	
 	// Xử lý tìm kiếm bài viết
 	var bv = [];
-
-	res.render('timkiem', {
+res.render('timkiem', {
 		title: 'Kết quả tìm kiếm',
 		baiviet: bv,
 		tukhoa: tukhoa
